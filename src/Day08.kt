@@ -80,7 +80,72 @@ fun main() {
     }
 
     fun part2(input: List<String>): Int {
-        return 0;
+
+        val visibleTreesMap = Array(input.size) {
+            Array(input.first().length) {
+                Array(4) { 0 }
+            }
+        }
+
+        val digitsInput = input.map { it ->
+            it.map {
+                it.digitToInt()
+            }
+        }
+
+        for (i in digitsInput.indices) {
+            for (j in digitsInput[i].indices) {
+                var maxTreeHeight = -1
+                for (k in i + 1 until digitsInput.size) {
+                    if (digitsInput[k][j] > maxTreeHeight) {
+                        maxTreeHeight = digitsInput[k][j]
+                        visibleTreesMap[k][j][Direction.Top.raw]++
+                    }
+                }
+            }
+        }
+        for (i in digitsInput.indices) {
+            for (j in digitsInput[i].indices) {
+                var maxTreeHeight = -1
+                for (k in j + 1 until digitsInput[i].size) {
+                    if (digitsInput[i][k] > maxTreeHeight) {
+                        maxTreeHeight = digitsInput[i][k]
+                        visibleTreesMap[i][k][Direction.Left.raw]++
+                    }
+                }
+            }
+        }
+        for (i in digitsInput.indices.reversed()) {
+            for (j in digitsInput[i].indices.reversed()) {
+                var maxTreeHeight = -1
+                for (k in i - 1 downTo 0) {
+                    if (digitsInput[k][j] > maxTreeHeight) {
+                        maxTreeHeight = digitsInput[k][j]
+                        visibleTreesMap[k][j][Direction.Bottom.raw]++
+                    }
+                }
+            }
+        }
+        for (i in digitsInput.indices.reversed()) {
+            for (j in digitsInput[i].indices.reversed()) {
+                var maxTreeHeight = -1
+                for (k in j - 1 downTo 0) {
+                    if (digitsInput[i][k] > maxTreeHeight) {
+                        maxTreeHeight = digitsInput[i][k]
+                        visibleTreesMap[i][k][Direction.Right.raw]++
+                    }
+                }
+            }
+        }
+
+        return visibleTreesMap.maxOf { it ->
+            it.maxOf {
+                it[Direction.Top.raw] *
+                        it[Direction.Left.raw] *
+                        it[Direction.Right.raw] *
+                        it[Direction.Bottom.raw]
+            }
+        }
     }
 
     val input = readInput("Day08")
