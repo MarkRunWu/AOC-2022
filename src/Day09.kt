@@ -1,21 +1,14 @@
 import java.lang.Math.abs
 import java.lang.Math.max
 import java.text.Normalizer.normalize
+import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MoveAction
 import kotlin.math.min
 import kotlin.math.sign
 
-private operator fun Pair<Int, Int>.plus(movement: Pair<Int, Int>): Pair<Int, Int> {
-    return Pair(this.first + movement.first, this.second + movement.second)
-}
-
-enum class Marker {
-    Tail,
-    Head,
-    Origin,
-    Empty
-}
 
 fun main() {
+    data class Movement(val offsetX: Int, val offsetY: Int);
+
     data class Position(var x: Int, var y: Int) {
         fun getNextStepPosition(target: Position): Position? {
             if (kotlin.math.abs(target.x - this.x) > 1) {
@@ -37,131 +30,108 @@ fun main() {
         }
     }
 
-    fun dumpMap(map: Array<Array<Pair<Int, Marker>>>) {
+    fun dumpMap(map: Array<Array<Boolean>>) {
         map.map { it ->
             println(it.map { v ->
-                when (v.second) {
-                    Marker.Origin -> {
-                        "S"
-                    }
-
-                    Marker.Tail -> {
-                        "#"
-                    }
-
-                    Marker.Head -> {
-                        "@"
-                    }
-
-                    else -> {
-                        "."
-                    }
-                }
+                if (v) "#" else "."
             }.joinToString("") { it })
         }
         println()
     }
 
-    fun part1(input: List<String>): Int {
-        val movements = input.map {
+    fun parseCommands(input: List<String>): List<Movement> {
+        return input.map {
             val commands = it.split(' ')
             when (commands[0]) {
-                "R" -> Pair(commands[1].toInt(), 0)
-                "U" -> Pair(0, commands[1].toInt())
-                "L" -> Pair(-commands[1].toInt(), 0)
-                "D" -> Pair(0, -commands[1].toInt())
+                "R" -> Movement(commands[1].toInt(), 0)
+                "U" -> Movement(0, commands[1].toInt())
+                "L" -> Movement(-commands[1].toInt(), 0)
+                "D" -> Movement(0, -commands[1].toInt())
                 else -> throw IllegalStateException("unknown command: ${commands[0]}")
             }
         }
-        val headVisitedPositionList = ArrayList<Position>()
-        val tailVisitedPositionList = ArrayList<Position>()
+    }
 
-        var headPos = Position(0, 0)
-        var tailPos = Position(0, 0)
-        headVisitedPositionList.add(headPos)
-        tailVisitedPositionList.add(tailPos)
-        for (movement in movements) {
-            val xSteps = kotlin.math.abs(movement.first)
-            val ySteps = kotlin.math.abs(movement.second)
+    fun simulate(ropeCount: Int, headMovements: List<Movement>): List<Array<Array<Boolean>>> {
+        val currentRopePositions = Array(ropeCount) {
+            Position(0, 0)
+        }
+        val ropeMoveResults = Array(ropeCount) {
+            ArrayList<Position>()
+        }
+        ropeMoveResults.forEachIndexed { index, positions ->
+            positions.add(currentRopePositions[index].copy())
+        }
+        for (movement in headMovements) {
+            val xSteps = kotlin.math.abs(movement.offsetX)
+            val ySteps = kotlin.math.abs(movement.offsetY)
             if (xSteps > 0) {
-                val step = if (movement.first > 0) 1 else -1
+                val step = if (movement.offsetX > 0) 1 else -1
                 for (i in 0 until xSteps) {
-                    headPos = Position(headPos.x + step, headPos.y)
-                    headVisitedPositionList.add(headPos)
-                    val nextTailPos = tailPos.getNextStepPosition(headPos)
-                    if (nextTailPos != null) {
-                        tailPos = nextTailPos
-                        tailVisitedPositionList.add(nextTailPos)
+                    currentRopePositions[0].x += step
+                    ropeMoveResults[0].add(currentRopePositions[0].copy())
+                    for (k in 1 until ropeMoveResults.size) {
+                        val curPos = currentRopePositions[k]
+                        val nextPos = curPos.getNextStepPosition(currentRopePositions[k - 1])
+                        if (nextPos != null) {
+                            currentRopePositions[k] = nextPos.copy()
+                            ropeMoveResults[k].add(nextPos.copy())
+                        }
                     }
                 }
             }
             if (ySteps > 0) {
-                val step = if (movement.second > 0) 1 else -1
+                val step = if (movement.offsetY > 0) 1 else -1
                 for (i in 0 until ySteps) {
-                    headPos = Position(headPos.x, headPos.y + step)
-                    headVisitedPositionList.add(headPos)
-                    val nextTailPos = tailPos.getNextStepPosition(headPos)
-                    if (nextTailPos != null) {
-                        tailPos = nextTailPos
-                        tailVisitedPositionList.add(nextTailPos)
+                    currentRopePositions[0].y += step
+                    ropeMoveResults[0].add(currentRopePositions[0].copy())
+                    for (k in 1 until ropeMoveResults.size) {
+                        val curPos = currentRopePositions[k]
+                        val nextPos = curPos.getNextStepPosition(currentRopePositions[k - 1])
+                        if (nextPos != null) {
+                            currentRopePositions[k] = nextPos.copy()
+                            ropeMoveResults[k].add(nextPos.copy())
+                        }
                     }
                 }
             }
         }
-        val minX = min(headVisitedPositionList.minOf { it.x }, tailVisitedPositionList.minOf { it.x })
-        val minY = min(headVisitedPositionList.minOf { it.y }, tailVisitedPositionList.minOf { it.y })
-        val normalizedHeadPositionList = headVisitedPositionList.map {
-            Position(it.x - minX, it.y - minY)
-        }
-        val normalizedTailPositionList = tailVisitedPositionList.map {
-            Position(it.x - minX, it.y - minY)
-        }
-        val origin = Position(-minX, -minY)
 
-        val maxX = normalizedHeadPositionList.maxOf { it.x }.coerceAtLeast(normalizedTailPositionList.maxOf { it.x })
-        val maxY = normalizedHeadPositionList.maxOf { it.y }.coerceAtLeast(normalizedTailPositionList.maxOf { it.y })
+        val maxX = ropeMoveResults.maxOf { it -> it.maxOf { it.x } }
+        val maxY = ropeMoveResults.maxOf { it -> it.maxOf { it.y } }
+        val minX = ropeMoveResults.minOf { it -> it.minOf { it.x } }
+        val minY = ropeMoveResults.minOf { it -> it.minOf { it.y } }
+        val width = maxX - minX + 1
+        val height = maxY - minY + 1
 
-        var map = Array(
-            maxY + 1
-        ) {
-            Array(maxX + 1) {
-                Pair(0, Marker.Empty)
+        val ropeMovementMapList = ropeMoveResults.map {
+            Array(height) {
+                Array(width) {
+                    false
+                }
             }
         }
 
-        map[origin.y][origin.x] = Pair(0, Marker.Origin)
-
-        for (p in normalizedHeadPositionList.indices) {
-            map[normalizedHeadPositionList[p].y][normalizedHeadPositionList[p].x] = Pair(
-                p,
-                Marker.Head
-            )
-        }
-        dumpMap(map)
-
-        map = Array(
-            maxY + 1
-        ) {
-            Array(maxX + 1) {
-                Pair(0, Marker.Empty)
+        for (i in ropeMoveResults.indices) {
+            for (pos in ropeMoveResults[i]) {
+                ropeMovementMapList[i][pos.y - minY][pos.x - minX] = true
             }
         }
-        map[origin.y][origin.x] = Pair(0, Marker.Origin)
-        for (p in normalizedTailPositionList.indices) {
-            map[normalizedTailPositionList[p].y][normalizedTailPositionList[p].x] = Pair(
-                p,
-                Marker.Tail
-            )
-        }
-        dumpMap(map)
+        return ropeMovementMapList
+    }
 
-
-
-        return map.sumOf { it -> it.count { it.second == Marker.Tail } }
+    fun part1(input: List<String>): Int {
+        val movements = parseCommands(input)
+        val result = simulate(2, movements)
+        dumpMap(result[1])
+        return result[1].sumOf { it -> it.count { it } }
     }
 
     fun part2(input: List<String>): Int {
-        return 0
+        val movements = parseCommands(input)
+        val result = simulate(11, movements)
+        dumpMap(result.last())
+        return result[9].sumOf { it -> it.count { it } }
     }
 
     val input = readInput("Day09")
