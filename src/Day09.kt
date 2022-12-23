@@ -1,30 +1,16 @@
-import java.lang.Math.abs
-import java.lang.Math.max
-import java.text.Normalizer.normalize
-import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MoveAction
-import kotlin.math.min
-import kotlin.math.sign
-
-
 fun main() {
     data class Movement(val offsetX: Int, val offsetY: Int);
 
     data class Position(var x: Int, var y: Int) {
         fun getNextStepPosition(target: Position): Position? {
-            if (kotlin.math.abs(target.x - this.x) > 1) {
-                return Position(
-                    this.x + if (target.x - this.x > 0) 1 else -1,
-                    if (target.y != this.y)
-                        target.y
-                    else
-                        this.y
-                )
-            }
-            if (kotlin.math.abs(target.y - this.y) > 1) {
-                return Position(
-                    if (target.x != this.x) target.x else this.x,
-                    this.y + if (target.y - this.y > 0) 1 else -1
-                )
+            val nextX = if (kotlin.math.abs(target.x - this.x) > 1) {
+                this.x + if (target.x - this.x > 0) 1 else -1
+            } else null
+            val nextY = if (kotlin.math.abs(target.y - this.y) > 1) {
+                this.y + if (target.y - this.y > 0) 1 else -1
+            } else null
+            if (nextX != null || nextY != null) {
+                return Position(nextX ?: target.x, nextY ?: target.y)
             }
             return null
         }
@@ -123,15 +109,15 @@ fun main() {
     fun part1(input: List<String>): Int {
         val movements = parseCommands(input)
         val result = simulate(2, movements)
-        dumpMap(result[1])
-        return result[1].sumOf { it -> it.count { it } }
+        dumpMap(result.last())
+        return result.last().sumOf { it -> it.count { it } }
     }
 
     fun part2(input: List<String>): Int {
         val movements = parseCommands(input)
-        val result = simulate(11, movements)
+        val result = simulate(10, movements)
         dumpMap(result.last())
-        return result[9].sumOf { it -> it.count { it } }
+        return result.last().sumOf { it -> it.count { it } }
     }
 
     val input = readInput("Day09")
